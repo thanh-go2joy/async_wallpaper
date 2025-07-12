@@ -10,9 +10,4 @@
     <uses-feature
         android:name="android.software.live_wallpaper"
         android:required="true" />
-
-
-    <application>
-        <activity android:name="com.codenameakshay.async_wallpaper.WallpaperActivity" />
-    </application>
 </manifest>
