@@ -1,6 +1,7 @@
-<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.codenameakshay.async_wallpaper">
+
+    <uses-sdk android:minSdkVersion="21" />
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
@@ -10,4 +11,11 @@
     <uses-feature
         android:name="android.software.live_wallpaper"
         android:required="true" />
+
+    <!-- ✅ TẤT CẢ activity, service... phải nằm TRONG <application> -->
+    <application>
+        <activity
+            android:name="com.codenameakshay.asyncwallpaper.AsyncWallpaperActivity"
+            android:exported="true" />
+    </application>
 </manifest>
