@@ -11,4 +11,9 @@
         android:name="android.software.live_wallpaper"
         android:required="true" />
 
+        <activity
+    android:name="com.codenameakshay.asyncwallpaper.AsyncWallpaperActivity"
+    android:exported="true" />
+
+
 </manifest>
