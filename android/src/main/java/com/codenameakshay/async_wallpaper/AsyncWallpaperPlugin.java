@@ -43,13 +43,7 @@ import io.flutter.plugin.common.MethodChannel.Result;
 /**
  * AsyncWallpaperPlugin
  */
-public class AsyncWallpaperPlugin extends Application implements FlutterPlugin, MethodCallHandler, ActivityAware {
-    /// The MethodChannel that will the communication between Flutter and native
-    /// Android
-    ///
-    /// This local reference serves to register the plugin with the Flutter Engine
-    /// and unregister it
-    /// when the Flutter Engine is detached from the Activity
+public class AsyncWallpaperPlugin implements FlutterPlugin, MethodCallHandler, ActivityAware {
     private MethodChannel channel;
     public static Context context;
     private Activity activity;
@@ -61,66 +55,42 @@ public class AsyncWallpaperPlugin extends Application implements FlutterPlugin, 
     private Target target = new Target() {
         @Override
         public void onBitmapLoaded(Bitmap resource, Picasso.LoadedFrom from) {
-            android.util.Log.i("Arguments ", "configureFlutterEngine: " + "Image Downloaded");
+            Log.i("Arguments ", "Image Downloaded (default)");
             SetWallPaperTask setWallPaperTask = new SetWallPaperTask(context);
-            setWallPaperTask.execute(new Pair(resource, "1"));
+            setWallPaperTask.execute(new Pair<>(resource, "1"));
         }
-
-        @Override
-        public void onBitmapFailed(Exception e, Drawable errorDrawable) {
-        }
-
-        @Override
-        public void onPrepareLoad(Drawable placeHolderDrawable) {
-        }
+        @Override public void onBitmapFailed(Exception e, Drawable errorDrawable) {}
+        @Override public void onPrepareLoad(Drawable placeHolderDrawable) {}
     };
     private Target target1 = new Target() {
         @Override
         public void onBitmapLoaded(Bitmap resource, Picasso.LoadedFrom from) {
-            android.util.Log.i("Arguments ", "configureFlutterEngine: " + "Image Downloaded");
+            Log.i("Arguments ", "Image Downloaded (lock)");
             SetWallPaperTask setWallPaperTask = new SetWallPaperTask(context);
-            setWallPaperTask.execute(new Pair(resource, "2"));
+            setWallPaperTask.execute(new Pair<>(resource, "2"));
         }
-
-        @Override
-        public void onBitmapFailed(Exception e, Drawable errorDrawable) {
-        }
-
-        @Override
-        public void onPrepareLoad(Drawable placeHolderDrawable) {
-        }
+        @Override public void onBitmapFailed(Exception e, Drawable errorDrawable) {}
+        @Override public void onPrepareLoad(Drawable placeHolderDrawable) {}
     };
     private Target target2 = new Target() {
         @Override
         public void onBitmapLoaded(Bitmap resource, Picasso.LoadedFrom from) {
-            android.util.Log.i("Arguments ", "configureFlutterEngine: " + "Image Downloaded");
+            Log.i("Arguments ", "Image Downloaded (home)");
             SetWallPaperTask setWallPaperTask = new SetWallPaperTask(context);
-            setWallPaperTask.execute(new Pair(resource, "3"));
+            setWallPaperTask.execute(new Pair<>(resource, "3"));
         }
-
-        @Override
-        public void onBitmapFailed(Exception e, Drawable errorDrawable) {
-        }
-
-        @Override
-        public void onPrepareLoad(Drawable placeHolderDrawable) {
-        }
+        @Override public void onBitmapFailed(Exception e, Drawable errorDrawable) {}
+        @Override public void onPrepareLoad(Drawable placeHolderDrawable) {}
     };
     private Target target3 = new Target() {
         @Override
         public void onBitmapLoaded(Bitmap resource, Picasso.LoadedFrom from) {
-            android.util.Log.i("Arguments ", "configureFlutterEngine: " + "Image Downloaded");
+            Log.i("Arguments ", "Image Downloaded (both)");
             SetWallPaperTask setWallPaperTask = new SetWallPaperTask(context);
-            setWallPaperTask.execute(new Pair(resource, "4"));
+            setWallPaperTask.execute(new Pair<>(resource, "4"));
         }
-
-        @Override
-        public void onBitmapFailed(Exception e, Drawable errorDrawable) {
-        }
-
-        @Override
-        public void onPrepareLoad(Drawable placeHolderDrawable) {
-        }
+        @Override public void onBitmapFailed(Exception e, Drawable errorDrawable) {}
+        @Override public void onPrepareLoad(Drawable placeHolderDrawable) {}
     };
 
     @Override
@@ -133,27 +103,35 @@ public class AsyncWallpaperPlugin extends Application implements FlutterPlugin, 
     }
 
     @Override
-    public void onDetachedFromActivity() {
+    public void onDetachedFromEngine(@NonNull FlutterPluginBinding binding) {
+        channel.setMethodCallHandler(null);
     }
 
     @Override
-    public void onReattachedToActivityForConfigChanges(@NonNull ActivityPluginBinding flutterPluginBinding) {
+    public void onAttachedToActivity(@NonNull ActivityPluginBinding binding) {
+        activity = binding.getActivity();
+    }
+
+    @Override
+    public void onDetachedFromActivity() {
+        activity = null;
+    }
+
+    @Override
+    public void onReattachedToActivityForConfigChanges(@NonNull ActivityPluginBinding binding) {
+        activity = binding.getActivity();
         if (redirectToLiveWallpaper && goToHome) {
             home();
         }
     }
 
     @Override
-    public void onAttachedToActivity(@NonNull ActivityPluginBinding flutterPluginBinding) {
-        activity = flutterPluginBinding.getActivity();
-    }
-
-    @Override
     public void onDetachedFromActivityForConfigChanges() {
+        activity = null;
     }
 
     public void home() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        if (activity != null) {
             Intent intent = new Intent(Intent.ACTION_MAIN);
             intent.addCategory(Intent.CATEGORY_HOME);
             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -165,293 +143,84 @@ public class AsyncWallpaperPlugin extends Application implements FlutterPlugin, 
     @Override
     public void onMethodCall(@NonNull MethodCall call, @NonNull Result result) {
         res = result;
-        if (call.method.equals("getPlatformVersion")) {
-            result.success("Android " + android.os.Build.VERSION.RELEASE);
-        } else if (call.method.equals("set_wallpaper")) {
-            String url = call.argument("url"); // .argument returns the correct type
-            goToHome = call.argument("goToHome"); // .argument returns the correct type
-            android.util.Log.i("Arguments ", "configureFlutterEngine: " + url);
-            Picasso.get().load(url).into(target);
-            // result.success(1);
-        } else if (call.method.equals("set_wallpaper_file")) {
-            String url = call.argument("url"); // .argument returns the correct type
-            goToHome = call.argument("goToHome"); // .argument returns the correct type
-            android.util.Log.i("Arguments ", "configureFlutterEngine: " + url);
-            Picasso.get().load("file://" + url).into(target);
-            // result.success(1);
+        String url = call.argument("url");
+        goToHome = call.argument("goToHome") != null && (Boolean) call.argument("goToHome");
 
-        } else if (call.method.equals("set_lock_wallpaper")) {
-            String url = call.argument("url"); // .argument returns the correct type
-            goToHome = call.argument("goToHome"); // .argument returns the correct type
-            android.util.Log.i("Arguments ", "configureFlutterEngine: " + url);
-            Picasso.get().load(url).into(target1);
-            try {
-                Thread.sleep(2000);
-            } catch (InterruptedException ex) {
-                Thread.currentThread().interrupt();
-            }
-            if (goToHome)
-                home();
-            // result.success(1);
+        switch (call.method) {
+            case "getPlatformVersion":
+                result.success("Android " + Build.VERSION.RELEASE);
+                break;
 
-        } else if (call.method.equals("set_home_wallpaper")) {
-            String url = call.argument("url"); // .argument returns the correct type
-            goToHome = call.argument("goToHome"); // .argument returns the correct type
-            android.util.Log.i("Arguments ", "configureFlutterEngine: " + url);
-            Picasso.get().load(url).into(target2);
-            try {
-                Thread.sleep(2000);
-            } catch (InterruptedException ex) {
-                Thread.currentThread().interrupt();
-            }
-            if (goToHome)
-                home();
-            // result.success(1);
+            case "set_wallpaper":
+                Picasso.get().load(url).into(target);
+                break;
 
-        } else if (call.method.equals("set_both_wallpaper")) {
-            String url = call.argument("url"); // .argument returns the correct type
-            goToHome = call.argument("goToHome"); // .argument returns the correct type
-            android.util.Log.i("Arguments ", "configureFlutterEngine: " + url);
-            Picasso.get().load(url).into(target3);
-            try {
-                Thread.sleep(2000);
-            } catch (InterruptedException ex) {
-                Thread.currentThread().interrupt();
-            }
-            if (goToHome)
-                home();
-            // result.success(1);
+            case "set_wallpaper_file":
+                Picasso.get().load("file://" + url).into(target);
+                break;
 
-        } else if (call.method.equals("set_lock_wallpaper_file")) {
-            String url = call.argument("url"); // .argument returns the correct type
-            goToHome = call.argument("goToHome"); // .argument returns the correct type
-            android.util.Log.i("Arguments ", "configureFlutterEngine: " + url);
-            Picasso.get().load("file://" + url).into(target1);
-            if (goToHome)
-                home();
-            // result.success(1);
+            case "set_lock_wallpaper":
+                Picasso.get().load(url).into(target1);
+                if (goToHome) home();
+                break;
 
-        } else if (call.method.equals("set_home_wallpaper_file")) {
-            String url = call.argument("url"); // .argument returns the correct type
-            goToHome = call.argument("goToHome"); // .argument returns the correct type
-            android.util.Log.i("Arguments ", "configureFlutterEngine: " + url);
-            Picasso.get().load("file://" + url).into(target2);
-            if (goToHome)
-                home();
-            // result.success(1);
+            case "set_home_wallpaper":
+                Picasso.get().load(url).into(target2);
+                if (goToHome) home();
+                break;
 
-        } else if (call.method.equals("set_both_wallpaper_file")) {
-            String url = call.argument("url"); // .argument returns the correct type
-            goToHome = call.argument("goToHome"); // .argument returns the correct type
-            android.util.Log.i("Arguments ", "configureFlutterEngine: " + url);
-            Picasso.get().load("file://" + url).into(target3);
-            if (goToHome)
-                home();
-            // result.success(1);
+            case "set_both_wallpaper":
+                Picasso.get().load(url).into(target3);
+                if (goToHome) home();
+                break;
 
-        } else if (call.method.equals("set_video_wallpaper")) {
-            String url = call.argument("url"); // .argument returns the correct type
-            goToHome = call.argument("goToHome"); // .argument returns the correct type
-            android.util.Log.i("Arguments ", "configureFlutterEngine: " + url);
-            // Picasso.get().load("file://" + url).into(target3);
-            copyFile(new File(url), new File(activity.getFilesDir().toPath() + "/file.mp4"));
-            redirectToLiveWallpaper = false;
-            VideoLiveWallpaper mVideoLiveWallpaper = new VideoLiveWallpaper();
-            mVideoLiveWallpaper.setToWallPaper(context);
-            result.success(true);
+            case "set_lock_wallpaper_file":
+                Picasso.get().load("file://" + url).into(target1);
+                if (goToHome) home();
+                break;
 
-        }
-        else if (call.method.equals("open_wallpaper_chooser")) {
-            goToHome = call.argument("goToHome"); // .argument returns the correct type
-            // TODO: Add logic
-            VideoLiveWallpaper mVideoLiveWallpaper = new VideoLiveWallpaper();
-            mVideoLiveWallpaper.openWallpaperChooser(context);
-            result.success(true);
-        }
-        else {
-            result.notImplemented();
+            case "set_home_wallpaper_file":
+                Picasso.get().load("file://" + url).into(target2);
+                if (goToHome) home();
+                break;
+
+            case "set_both_wallpaper_file":
+                Picasso.get().load("file://" + url).into(target3);
+                if (goToHome) home();
+                break;
+
+            case "set_video_wallpaper":
+                copyFile(new File(url), new File(activity.getFilesDir(), "file.mp4"));
+                redirectToLiveWallpaper = false;
+                VideoLiveWallpaper videoLiveWallpaper = new VideoLiveWallpaper();
+                videoLiveWallpaper.setToWallPaper(context);
+                result.success(true);
+                break;
+
+            case "open_wallpaper_chooser":
+                VideoLiveWallpaper chooser = new VideoLiveWallpaper();
+                chooser.openWallpaperChooser(context);
+                result.success(true);
+                break;
+
+            default:
+                result.notImplemented();
         }
     }
 
     public void copyFile(File fromFile, File toFile) {
-        FileInputStream fileInputStream = null;
-        FileOutputStream fileOutputStream = null;
-        FileChannel fileChannelInput = null;
-        FileChannel fileChannelOutput = null;
-        try {
-            fileInputStream = new FileInputStream(fromFile);
-            fileOutputStream = new FileOutputStream(toFile);
-            fileChannelInput = fileInputStream.getChannel();
-            fileChannelOutput = fileOutputStream.getChannel();
-            fileChannelInput.transferTo(0, fileChannelInput.size(), fileChannelOutput);
+        try (FileInputStream in = new FileInputStream(fromFile);
+             FileOutputStream out = new FileOutputStream(toFile);
+             FileChannel inChannel = in.getChannel();
+             FileChannel outChannel = out.getChannel()) {
+            inChannel.transferTo(0, inChannel.size(), outChannel);
         } catch (IOException e) {
             e.printStackTrace();
-        } finally {
-            try {
-                if (fileInputStream != null)
-                    fileInputStream.close();
-                if (fileChannelInput != null)
-                    fileChannelInput.close();
-                if (fileOutputStream != null)
-                    fileOutputStream.close();
-                if (fileChannelOutput != null)
-                    fileChannelOutput.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
         }
-    }
-
-    @Override
-    public void onDetachedFromEngine(@NonNull FlutterPluginBinding binding) {
-        channel.setMethodCallHandler(null);
     }
 }
 
-// class SetWallPaperTask extends AsyncTask<Pair<Bitmap, String>, Boolean, Boolean> {
-
-//     private final Context mContext;
-
-//     public SetWallPaperTask(final Context context) {
-//         mContext = context;
-//     }
-
-//     @Override
-//     protected final Boolean doInBackground(Pair<Bitmap, String>... pairs) {
-//         switch (pairs[0].second) {
-//             case "1": {
-//                 WallpaperManager wallpaperManager = WallpaperManager.getInstance(mContext);
-//                 try {
-//                     int WITH_OTHER_APP_CODE = 733;
-//                     Uri tempUri = getImageUri(mContext, pairs[0].first);
-//                     Log.i("Arguments ", "configureFlutterEngine: " + "Saved image to storage");
-//                     File finalFile = new File(getRealPathFromURI(tempUri));
-//                     Uri contentURI = getImageContentUri(mContext, finalFile.getAbsolutePath());
-//                     Log.i("Arguments ", "configureFlutterEngine: " + "Opening crop intent");
-//                     Intent setWall = new Intent(Intent.ACTION_ATTACH_DATA);
-//                     setWall.setDataAndType(contentURI, "image/*");
-//                     setWall.putExtra("mimeType", "image/*");
-//                     setWall.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-//                     setWall.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-//                     Intent chooser = Intent.createChooser(setWall, "Apply with external app");
-//                     chooser.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-//                     mContext.startActivity(
-//                             chooser,
-//                             new Bundle(WITH_OTHER_APP_CODE));
-//                 } catch (Exception ex) {
-//                     try {
-//                         wallpaperManager.setBitmap(pairs[0].first);
-//                     } catch (IOException e) {
-//                         e.printStackTrace();
-//                     }
-//                     ex.printStackTrace();
-//                     return false;
-//                 }
-//             }
-//             case "2": {
-//                 WallpaperManager wallpaperManager = WallpaperManager.getInstance(mContext);
-//                 try {
-//                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-//                         wallpaperManager.setBitmap(pairs[0].first, null, true, WallpaperManager.FLAG_LOCK);
-//                     }
-//                 } catch (IOException ex) {
-//                     ex.printStackTrace();
-//                     return false;
-//                 }
-//                 break;
-//             }
-//             case "3": {
-//                 WallpaperManager wallpaperManager = WallpaperManager.getInstance(mContext);
-//                 try {
-//                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-//                         wallpaperManager.setBitmap(pairs[0].first, null, true, WallpaperManager.FLAG_SYSTEM);
-//                     }
-//                 } catch (IOException ex) {
-//                     ex.printStackTrace();
-//                     return false;
-//                 }
-//                 break;
-//             }
-//             case "4": {
-//                 WallpaperManager wallpaperManager = WallpaperManager.getInstance(mContext);
-//                 try {
-//                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-//                         wallpaperManager.setBitmap(pairs[0].first, null, true,
-//                                 WallpaperManager.FLAG_LOCK | WallpaperManager.FLAG_SYSTEM);
-//                     }
-//                 } catch (IOException ex) {
-//                     ex.printStackTrace();
-//                     return false;
-//                 }
-//                 break;
-//             }
-//         }
-//         return true;
-//     }
-
-//     @Override
-//     protected void onPostExecute(Boolean aBoolean) {
-//         myMethod(aBoolean);
-//     }
-
-//     private void myMethod(Boolean result) {
-//         AsyncWallpaperPlugin.res.success(result);
-//     }
-
-//     public static Uri getImageContentUri(Context context, String absPath) {
-
-//         Cursor cursor = context.getContentResolver().query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-//                 new String[] { MediaStore.Images.Media._ID }, MediaStore.Images.Media.DATA + "=? ",
-//                 new String[] { absPath }, null);
-
-//         if (cursor != null && cursor.moveToFirst()) {
-//             int id = cursor.getInt(cursor.getColumnIndex(MediaStore.MediaColumns._ID));
-//             return Uri.withAppendedPath(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, Integer.toString(id));
-
-//         } else if (!absPath.isEmpty()) {
-//             ContentValues values = new ContentValues();
-//             values.put(MediaStore.Images.Media.DATA, absPath);
-//             return context.getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
-//         } else {
-//             return null;
-//         }
-//     }
-
-//     public Uri getImageUri(Context inContext, Bitmap inImage) {
-//         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-//         inImage.compress(Bitmap.CompressFormat.JPEG, 100, bytes);
-//         fixMediaDir();
-//         String path = MediaStore.Images.Media.insertImage(inContext.getContentResolver(), inImage, "Title", null);
-//         return Uri.parse(path);
-//     }
-
-//     public String getRealPathFromURI(Uri uri) {
-//         Cursor cursor = mContext.getContentResolver().query(uri, null, null, null, null);
-//         cursor.moveToFirst();
-//         int idx = cursor.getColumnIndex(MediaStore.Images.ImageColumns.DATA);
-//         return cursor.getString(idx);
-//     }
-
-//     void fixMediaDir() {
-//         File sdcard = Environment.getExternalStorageDirectory();
-//         if (sdcard != null) {
-//             File mediaDir = new File(sdcard, "DCIM/Camera");
-//             if (!mediaDir.exists()) {
-//                 mediaDir.mkdirs();
-//             }
-//         }
-
-//         if (sdcard != null) {
-//             File mediaDir = new File(sdcard, "Pictures");
-//             if (!mediaDir.exists()) {
-//                 mediaDir.mkdirs();
-//             }
-//         }
-//     }
-// }
-
 class SetWallPaperTask extends AsyncTask<Pair<Bitmap, String>, Boolean, Boolean> {
-
     private final Context mContext;
 
     public SetWallPaperTask(final Context context) {
@@ -460,51 +229,36 @@ class SetWallPaperTask extends AsyncTask<Pair<Bitmap, String>, Boolean, Boolean>
 
     @Override
     protected final Boolean doInBackground(Pair<Bitmap, String>... pairs) {
+        String mode = pairs[0].second;
+        Bitmap bitmap = pairs[0].first;
         WallpaperManager wallpaperManager = WallpaperManager.getInstance(mContext);
 
         try {
-            switch (pairs[0].second) {
-                case "1": {
-                    // Cũ: mở chooser crop bằng Intent -> reset app
-                    // Mới: set trực tiếp (áp dụng mặc định)
-                    wallpaperManager.setBitmap(pairs[0].first);
+            switch (mode) {
+                case "1": // default
+                    wallpaperManager.setBitmap(bitmap);
                     break;
-                }
-                case "2": {
+                case "2": // lock
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                        wallpaperManager.setBitmap(pairs[0].first, null, true, WallpaperManager.FLAG_LOCK);
-                    } else {
-                        wallpaperManager.setBitmap(pairs[0].first);
+                        wallpaperManager.setBitmap(bitmap, null, true, WallpaperManager.FLAG_LOCK);
                     }
                     break;
-                }
-                case "3": {
+                case "3": // home
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                        wallpaperManager.setBitmap(pairs[0].first, null, true, WallpaperManager.FLAG_SYSTEM);
-                    } else {
-                        wallpaperManager.setBitmap(pairs[0].first);
+                        wallpaperManager.setBitmap(bitmap, null, true, WallpaperManager.FLAG_SYSTEM);
                     }
                     break;
-                }
-                case "4": {
+                case "4": // both
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                        wallpaperManager.setBitmap(
-                                pairs[0].first,
-                                null,
-                                true,
-                                WallpaperManager.FLAG_LOCK | WallpaperManager.FLAG_SYSTEM
-                        );
-                    } else {
-                        wallpaperManager.setBitmap(pairs[0].first);
+                        wallpaperManager.setBitmap(bitmap, null, true,
+                                WallpaperManager.FLAG_LOCK | WallpaperManager.FLAG_SYSTEM);
                     }
                     break;
-                }
             }
         } catch (IOException ex) {
             ex.printStackTrace();
             return false;
         }
-
         return true;
     }
 
