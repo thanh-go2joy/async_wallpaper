@@ -3,19 +3,32 @@
 
     <uses-sdk android:minSdkVersion="21" />
 
+    <!-- quyền cơ bản -->
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.SET_WALLPAPER" />
 
+    <!-- Live wallpaper feature (giữ lại nếu cần) -->
     <uses-feature
         android:name="android.software.live_wallpaper"
         android:required="true" />
 
-    <!-- ✅ TẤT CẢ activity, service... phải nằm TRONG <application> -->
-    <application>
+    <application
+        android:label="async_wallpaper"
+        android:icon="@mipmap/ic_launcher">
+
         <activity
             android:name="com.codenameakshay.asyncwallpaper.AsyncWallpaperActivity"
             android:exported="true" />
+
+        <!-- cần thêm FileProvider -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 </manifest>
