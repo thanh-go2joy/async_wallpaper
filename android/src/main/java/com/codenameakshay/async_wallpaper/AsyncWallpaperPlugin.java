@@ -1,95 +1,121 @@
-package com.codenameakshay.async_wallpaper;
+package com.thanh.async_wallpaper;
 
+import android.app.Activity;
 import android.app.WallpaperManager;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Build;
-import android.provider.Settings;
-import android.util.Log;
+import android.os.Handler;
+import android.os.Looper;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.FileProvider;
 
 import java.io.File;
-import java.io.IOException;
+import java.io.InputStream;
 
+import io.flutter.embedding.engine.plugins.FlutterPlugin;
+import io.flutter.embedding.engine.plugins.activity.ActivityAware;
+import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
-import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
-import io.flutter.plugin.common.MethodChannel.Result;
-import io.flutter.plugin.common.PluginRegistry.Registrar;
 
-public class AsyncWallpaperPlugin implements MethodCallHandler {
-    private final Context context;
+public class AsyncWallpaperPlugin implements FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware {
+    private MethodChannel channel;
+    private Context context;
+    private Activity activity;
 
-    private AsyncWallpaperPlugin(Context context) {
-        this.context = context;
-    }
-
-    public static void registerWith(Registrar registrar) {
-        final MethodChannel channel = new MethodChannel(registrar.messenger(), "async_wallpaper");
-        channel.setMethodCallHandler(new AsyncWallpaperPlugin(registrar.context()));
+    @Override
+    public void onAttachedToEngine(@NonNull FlutterPluginBinding flutterPluginBinding) {
+        context = flutterPluginBinding.getApplicationContext();
+        channel = new MethodChannel(flutterPluginBinding.getBinaryMessenger(), "async_wallpaper");
+        channel.setMethodCallHandler(this);
     }
 
     @Override
-    public void onMethodCall(MethodCall call, @NonNull Result result) {
+    public void onMethodCall(@NonNull MethodCall call, @NonNull MethodChannel.Result result) {
         if (call.method.equals("setWallpaper")) {
-            String url = call.argument("url");
-            int wallpaperLocation = call.argument("wallpaperLocation");
+            String filePath = call.argument("filePath");
+            int location = call.argument("location");
 
-            if (url == null) {
-                result.error("INVALID_URL", "URL cannot be null", null);
+            if (filePath == null) {
+                result.error("INVALID_PATH", "File path is null", null);
                 return;
             }
 
             try {
-                File file = new File(url);
-                if (!file.exists()) {
-                    result.error("FILE_NOT_FOUND", "File not found at: " + url, null);
-                    return;
-                }
+                File file = new File(filePath);
+                Uri uri = FileProvider.getUriForFile(context, context.getPackageName() + ".provider", file);
 
-                Uri uri = Uri.fromFile(file);
-
-                // ✅ Detect OEM để tránh reset app
-                String manufacturer = Build.MANUFACTURER.toLowerCase();
-                if (manufacturer.contains("oppo") ||
-                    manufacturer.contains("realme") ||
-                    manufacturer.contains("vivo")) {
-
-                    // 👉 Luôn fallback sang chooser intent
+                if (isOppoOrVivo()) {
+                    // 👉 fallback chooser để tránh reset app
                     Intent intent = new Intent(Intent.ACTION_ATTACH_DATA);
+                    intent.addCategory(Intent.CATEGORY_DEFAULT);
                     intent.setDataAndType(uri, "image/*");
                     intent.putExtra("mimeType", "image/*");
                     intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                    context.startActivity(Intent.createChooser(intent, "Set as:"));
 
-                    result.success(true);
-                    return;
-                }
-
-                // 👉 Default: set bằng WallpaperManager
-                WallpaperManager wm = WallpaperManager.getInstance(context);
-                if (wallpaperLocation == 1) {
-                    wm.setStream(context.getContentResolver().openInputStream(uri), null, true, WallpaperManager.FLAG_SYSTEM);
-                } else if (wallpaperLocation == 2 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                    wm.setStream(context.getContentResolver().openInputStream(uri), null, true, WallpaperManager.FLAG_LOCK);
-                } else if (wallpaperLocation == 3 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                    wm.setStream(context.getContentResolver().openInputStream(uri), null, true,
-                            WallpaperManager.FLAG_LOCK | WallpaperManager.FLAG_SYSTEM);
+                    if (activity != null) {
+                        activity.startActivity(Intent.createChooser(intent, "Set as:"));
+                        result.success(true);
+                    } else {
+                        result.error("NO_ACTIVITY", "Activity is null", null);
+                    }
                 } else {
-                    wm.setStream(context.getContentResolver().openInputStream(uri));
+                    // 👉 auto set trực tiếp
+                    ContentResolver cr = context.getContentResolver();
+                    InputStream is = cr.openInputStream(uri);
+                    Bitmap bitmap = BitmapFactory.decodeStream(is);
+                    is.close();
+
+                    WallpaperManager wm = WallpaperManager.getInstance(context);
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                        wm.setBitmap(bitmap, null, true, location);
+                    } else {
+                        wm.setBitmap(bitmap);
+                    }
+                    result.success(true);
                 }
-
-                result.success(true);
-
-            } catch (IOException e) {
-                result.error("IO_ERROR", e.getMessage(), null);
             } catch (Exception e) {
-                result.error("ERROR", e.getMessage(), null);
+                e.printStackTrace();
+                result.error("SET_FAILED", e.getMessage(), null);
             }
         } else {
             result.notImplemented();
         }
+    }
+
+    private boolean isOppoOrVivo() {
+        String manufacturer = Build.MANUFACTURER.toLowerCase();
+        return manufacturer.contains("oppo") || manufacturer.contains("vivo");
+    }
+
+    @Override
+    public void onDetachedFromEngine(@NonNull FlutterPluginBinding binding) {
+        channel.setMethodCallHandler(null);
+    }
+
+    @Override
+    public void onAttachedToActivity(@NonNull ActivityPluginBinding binding) {
+        this.activity = binding.getActivity();
+    }
+
+    @Override
+    public void onDetachedFromActivityForConfigChanges() {
+        this.activity = null;
+    }
+
+    @Override
+    public void onReattachedToActivityForConfigChanges(@NonNull ActivityPluginBinding binding) {
+        this.activity = binding.getActivity();
+    }
+
+    @Override
+    public void onDetachedFromActivity() {
+        this.activity = null;
     }
 }
